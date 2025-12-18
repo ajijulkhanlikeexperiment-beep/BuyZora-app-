@@ -1,0 +1,7 @@
+const SUPABASE_URL = https://qbousjecmgarfaiuclcu.supabase.co
+const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFib3VzamVjbWdhcmZhaXVjbGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0MDIwMzcsImV4cCI6MjA4MDk3ODAzN30.djFdAJJXIGJKPeEobYTwjBdPELtjsoMH_bNIBvs2Urc
+
+const supabase = supabaseJs.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
