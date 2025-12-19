@@ -1,16 +1,3 @@
-import { supabase } from "../services/supabaseClient";
-
-useEffect(() => {
-  const loadData = async () => {
-    const { data, error } = await supabase
-      .from("reels")
-      .select("*");
-
-    console.log(data, error);
-  };
-
-  loadData();
-}, []);
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -19,7 +6,7 @@ import {
   CheckCircle, ShieldCheck, Sparkles, ArrowLeft,
   Play, Pause, Bookmark
 } from 'lucide-react';
-import { Reel } from '../types';
+import { Reel } from './types';
 import { Button } from './UIComponents';
 
 interface ReelsViewProps {
