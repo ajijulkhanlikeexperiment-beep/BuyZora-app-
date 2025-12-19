@@ -8,12 +8,40 @@ import {
 import { UserRole, ScreenName, Product, Reel } from './types';
 
 // Components
-// Components
 import { Button, Input, Card, NavItem } from './UIComponents';
 import { ReelsView } from './ReelsView';
 import { SellerPortal } from './SellerPortal';
 import { SellerUpload } from './SellerUpload';
-import * as GeminiService from './services/geminiService';
+
+// --- MOCK GEMINI SERVICE (since geminiService.ts might not exist) ---
+const GeminiService = {
+  optimizeReelMetadata: async (title: string, description: string, category: string) => {
+    return {
+      optimizedTitle: `${title} (AI Optimized)`,
+      optimizedDescription: `${description}\n\n✨ AI Enhanced for better engagement`,
+      suggestedTags: ['trending', category.toLowerCase(), 'viral', 'musthave'],
+      reasoning: 'AI has optimized your title and description for better search visibility and engagement.'
+    };
+  },
+  validateProductLink: async (url: string) => {
+    return {
+      isValid: true,
+      reason: "Valid product link"
+    };
+  },
+  analyzeWebsiteLink: async (url: string) => {
+    return {
+      category: 'Fashion & Apparel',
+      priceComparison: 'Competitive pricing found. 15% lower than average market rate.',
+      suggestions: [
+        'Add 3-4 more product images',
+        'Include size chart in description',
+        'Add video demonstration',
+        'Offer bundle discounts'
+      ]
+    };
+  }
+};
 
 // --- MOCK DATA ---
 const PRODUCTS: Product[] = [
@@ -74,7 +102,6 @@ const REELS: Reel[] = [
   { 
     id: 'r1', 
     thumbnail: 'https://picsum.photos/400/800?random=10', 
-    // Using a sample MP4 link for demo purposes
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', 
     product: PRODUCTS[0], 
     likes: 1200, 
@@ -85,7 +112,6 @@ const REELS: Reel[] = [
   { 
     id: 'r2', 
     thumbnail: 'https://picsum.photos/400/800?random=11', 
-    // Fallback to image if video fails or just another sample
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 
     product: PRODUCTS[1], 
     likes: 850, 
@@ -476,360 +502,260 @@ const Profile = ({
   hasSellerAccount 
 }: { 
   role: UserRole, 
-  onSwitchMode: () => void,
-  hasSellerAccount: boolean
+  onSwitchMode: (r: UserRole) => void,
+  hasSellerAccount: boolean 
 }) => {
-  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
 
-  const menu = role === UserRole.BUYER 
-    ? ['My Orders', 'Wishlist', 'Addresses', 'Payment Methods', 'Help Center']
-    : ['Account Settings', 'Bank Details', 'KYC Verification', 'Settlements', 'Seller Support'];
-
-  const renderSectionContent = () => {
-    switch (activeSection) {
-      case 'Account Settings':
-        return (
-          <div className="space-y-4">
-             <div className="flex items-center justify-center mb-6">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden">
-                    <img src={`https://picsum.photos/200/200?random=${role}`} className="w-full h-full object-cover" alt="Profile" />
-                  </div>
-                  <button className="absolute bottom-0 right-0 p-1.5 bg-[#5A4BFF] rounded-full text-white border-2 border-white dark:border-[#111118]">
-                    <Camera className="w-4 h-4" />
-                  </button>
-                </div>
-             </div>
-             <Input label="Display Name" defaultValue={role === UserRole.BUYER ? "Jane Doe" : "Alex Store"} />
-             <Input label="Email" defaultValue={role === UserRole.BUYER ? "jane@example.com" : "alex@store.com"} />
-             <Input label="Phone" defaultValue="+1 234 567 890" />
-             <Button fullWidth className="mt-4">Save Changes</Button>
-          </div>
-        );
-      case 'Bank Details':
-        return (
-          <div className="space-y-4">
-             <Card>
-               <h3 className="font-bold dark:text-white mb-2">Primary Account</h3>
-               <p className="text-sm text-gray-500 mb-4">Payouts are sent here automatically.</p>
-               <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-lg dark:text-white">**** **** **** 4242</span>
-                    <CreditCard className="w-8 h-8 text-[#5A4BFF]" />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>CHASE BANK</span>
-                    <span>Checking</span>
-                  </div>
-               </div>
-               <Button variant="outline" fullWidth>Edit Account</Button>
-             </Card>
-             <Button fullWidth>Add New Bank Account</Button>
-          </div>
-        );
-      case 'KYC Verification':
-        return (
-          <div className="text-center py-8">
-             <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-               <CheckCircle className="w-10 h-10 text-green-500" />
-             </div>
-             <h3 className="text-xl font-bold dark:text-white mb-2">Identity Verified</h3>
-             <p className="text-gray-500 mb-6">Your documents have been approved. You are eligible to sell.</p>
-             <Card className="text-left">
-                <div className="flex justify-between py-3 border-b border-gray-100 dark:border-white/5">
-                   <span className="text-sm text-gray-600 dark:text-gray-300">Government ID</span>
-                   <span className="text-sm font-bold text-green-500">Approved</span>
-                </div>
-                <div className="flex justify-between py-3">
-                   <span className="text-sm text-gray-600 dark:text-gray-300">Tax Document</span>
-                   <span className="text-sm font-bold text-green-500">Approved</span>
-                </div>
-             </Card>
-          </div>
-        );
-      case 'Settlements':
-        return (
-          <div className="space-y-4">
-             <Card className="bg-[#5A4BFF] text-white">
-                <p className="text-xs opacity-80 mb-1">Available for Payout</p>
-                <h3 className="text-3xl font-bold">$1,240.50</h3>
-                <Button variant="secondary" className="mt-4 h-10 text-sm w-full">Request Payout Now</Button>
-             </Card>
-             <h4 className="font-bold dark:text-white mt-4 mb-2">Recent Payouts</h4>
-             {[1,2,3].map(i => (
-               <div key={i} className="flex justify-between items-center p-4 bg-white dark:bg-[#1E1E24] rounded-2xl shadow-sm">
-                  <div>
-                    <p className="font-bold text-sm dark:text-white">Payout #{1000+i}</p>
-                    <p className="text-xs text-gray-500">Processed on Oct {10+i}, 2024</p>
-                  </div>
-                  <span className="font-bold text-green-500">+$450.00</span>
-               </div>
-             ))}
-          </div>
-        );
-      case 'Seller Support':
-        return (
-          <div className="space-y-4">
-             <Card>
-                <h3 className="font-bold dark:text-white mb-2">Contact Support</h3>
-                <p className="text-sm text-gray-500 mb-4">We usually respond within 24 hours.</p>
-                <Input label="Subject" placeholder="Payment issue, Account..." className="mb-4" />
-                <div className="flex flex-col gap-2 mb-4">
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300 ml-1">Message</label>
-                  <textarea className="w-full bg-white dark:bg-[#1E1E24] border border-gray-100 dark:border-white/10 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#5A4BFF] focus:outline-none h-32 resize-none" placeholder="Describe your issue..."></textarea>
-                </div>
-                <Button fullWidth>Send Message</Button>
-             </Card>
-             <div className="flex gap-4">
-                <Button variant="outline" className="flex-1">FAQ</Button>
-                <Button variant="outline" className="flex-1">Live Chat</Button>
-             </div>
-          </div>
-        );
-      // Buyer Placeholders
-      default:
-        return (
-          <div className="text-center py-10">
-            <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="font-bold dark:text-white">{activeSection}</h3>
-            <p className="text-gray-500 text-sm mt-2">This feature is coming soon to the demo.</p>
-          </div>
-        );
+  const handleSwitch = () => {
+    if (role === UserRole.BUYER) {
+      if (hasSellerAccount) onSwitchMode(UserRole.SELLER);
+      // else show a modal/prompt to create seller account
+    } else {
+      onSwitchMode(UserRole.BUYER);
     }
-  }
+  };
 
-  // If a section is active, show the sub-screen
-  if (activeSection) {
-    return (
-      <div className="pb-24 pt-6 px-4 h-full flex flex-col animate-fade-in">
-        <div className="flex items-center gap-3 mb-6">
-          <button 
-            onClick={() => setActiveSection(null)}
-            className="p-2 bg-gray-100 dark:bg-white/10 rounded-full hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 dark:text-white" />
-          </button>
-          <h2 className="text-xl font-bold dark:text-white">{activeSection}</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-           {renderSectionContent()}
-        </div>
-      </div>
-    );
-  }
-
-  // Main Menu View
   return (
-    <div className="pb-24 pt-6 px-4 animate-fade-in">
-      {/* Profile Header */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#5A4BFF] to-[#33CFFF] p-1 mb-3">
-          <img src={`https://picsum.photos/200/200?random=${role}`} className="w-full h-full rounded-full border-4 border-white dark:border-[#111118]" alt="Profile" />
+    <div className="pb-24 pt-6 px-4 h-full overflow-y-auto">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="w-16 h-16 bg-gradient-to-tr from-[#5A4BFF] to-[#33CFFF] rounded-2xl flex items-center justify-center">
+          <User className="text-white w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold dark:text-white">{role === UserRole.BUYER ? 'Jane Doe' : 'Alex Store'}</h2>
-        <p className="text-sm text-gray-500 mb-4">{role}</p>
-
-        {/* Switcher Banner/Button */}
-        {role === UserRole.BUYER ? (
-          <div 
-            onClick={onSwitchMode}
-            className="w-full bg-gradient-to-r from-[#111118] to-[#2C2C35] text-white p-4 rounded-2xl shadow-lg cursor-pointer flex items-center justify-between relative overflow-hidden active:scale-[0.98] transition-transform"
-          >
-            <div className="absolute right-0 top-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
-            <div className="z-10">
-              <h3 className="font-bold text-sm">Become a Seller</h3>
-              <p className="text-[10px] text-gray-400">Start selling your products today.</p>
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Store className="w-5 h-5 text-[#5A4BFF]" />
-            </div>
+        <div>
+          <h3 className="text-xl font-bold dark:text-white">Alex Morgan</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${role === UserRole.BUYER ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+              {role === UserRole.BUYER ? '👤 Buyer' : '🏪 Seller'}
+            </span>
+            <button 
+              onClick={handleSwitch}
+              className="text-xs text-[#5A4BFF] font-bold"
+            >
+              Switch to {role === UserRole.BUYER ? 'Seller' : 'Buyer'}
+            </button>
           </div>
-        ) : (
-          <Button variant="outline" fullWidth onClick={onSwitchMode} className="gap-2">
-            <ShoppingBag className="w-4 h-4" />
-            Switch to Shopping
-          </Button>
-        )}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {menu.map(item => (
-          <button 
-            key={item} 
-            onClick={() => setActiveSection(item)}
-            className="w-full p-4 flex justify-between items-center bg-white dark:bg-[#1E1E24] rounded-2xl shadow-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors active:scale-[0.99]"
-          >
-            <span className="font-medium dark:text-gray-200">{item}</span>
-            <ArrowRight className="w-5 h-5 text-gray-400" />
-          </button>
-        ))}
-      </div>
-      
-      <div className="mt-8">
-        <Button variant="ghost" fullWidth className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10">
-          <LogOut className="w-4 h-4 mr-2" /> Log Out
-        </Button>
+      <div className="space-y-4">
+        <h4 className="font-bold dark:text-white">Account</h4>
+        <NavItem icon={<UserCircle />} label="Edit Profile" />
+        <NavItem icon={<Settings />} label="Settings" />
+        <NavItem icon={<CreditCard />} label="Payment Methods" />
+        <NavItem icon={<FileText />} label="Order History" />
+        
+        <h4 className="font-bold dark:text-white mt-6">Preferences</h4>
+        <div className="flex items-center justify-between bg-white dark:bg-[#1E1E24] p-3 rounded-xl">
+          <div className="flex items-center gap-3">
+            {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            <span className="dark:text-white">Dark Mode</span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="sr-only peer" 
+              checked={darkMode} 
+              onChange={() => setDarkMode(!darkMode)} 
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5A4BFF]"></div>
+          </label>
+        </div>
+        <NavItem icon={<HelpCircle />} label="Help & Support" />
+        
+        <div className="mt-8">
+          <Button variant="ghost" fullWidth className="text-red-500">
+            <LogOut className="w-5 h-5 mr-2" />
+            Log Out
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
 
-// --- APP COMPONENT ---
-
+// MAIN APP COMPONENT
 const App = () => {
-  const [screen, setScreen] = useState<ScreenName>(ScreenName.ONBOARDING);
-  const [role, setRole] = useState<UserRole>(UserRole.BUYER);
-  const [hasSellerAccount, setHasSellerAccount] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>(UserRole.BUYER);
+  const [currentScreen, setCurrentScreen] = useState<ScreenName>(ScreenName.ONBOARDING);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isDark, setIsDark] = useState(false);
+  const [hasSellerAccount, setHasSellerAccount] = useState(false);
 
-  useEffect(() => {
-    if (isDark) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [isDark]);
-
-  const handleLogin = () => {
-    // Default to Buyer Home
-    setRole(UserRole.BUYER);
-    setScreen(ScreenName.BUYER_HOME);
-  };
-
-  const handleProductSelect = (p: Product) => {
-    setSelectedProduct(p);
-    setScreen(ScreenName.BUYER_PRODUCT_DETAIL);
-  };
-
-  const handleSellerSwitch = () => {
-    if (role === UserRole.BUYER) {
-      if (hasSellerAccount) {
-        setRole(UserRole.SELLER);
-        setScreen(ScreenName.SELLER_DASHBOARD);
-      } else {
-        // Go to registration if not a seller yet
-        setScreen(ScreenName.SELLER_REGISTRATION);
-      }
-    } else {
-      // Switch back to Buyer
-      setRole(UserRole.BUYER);
-      setScreen(ScreenName.BUYER_HOME);
-    }
-  };
-
-  const handleSellerRegistrationComplete = () => {
-    setHasSellerAccount(true);
-    setRole(UserRole.SELLER);
-    setScreen(ScreenName.SELLER_DASHBOARD);
-  };
-
-  // Nav renderer
-  const renderBottomNav = () => {
-    // Hide nav on these screens
-    if ([
-      ScreenName.ONBOARDING, 
-      ScreenName.AUTH, 
-      ScreenName.BUYER_PRODUCT_DETAIL, 
-      ScreenName.BUYER_REELS,
-      ScreenName.SELLER_REGISTRATION
-    ].includes(screen)) return null;
-
-    if (role === UserRole.BUYER) {
-      return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#111118]/90 backdrop-blur-md border-t border-gray-100 dark:border-white/5 py-3 px-6 flex justify-between z-50">
-          <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="Shop" isActive={screen === ScreenName.BUYER_HOME} onClick={() => setScreen(ScreenName.BUYER_HOME)} />
-          <NavItem icon={<div className="bg-black dark:bg-white text-white dark:text-black rounded-md px-1 font-bold text-xs">Reels</div>} label="Reels" isActive={screen === ScreenName.BUYER_REELS} onClick={() => setScreen(ScreenName.BUYER_REELS)} />
-          <NavItem icon={<Search className="w-5 h-5" />} label="Search" isActive={false} onClick={() => {}} />
-          <NavItem icon={<UserCircle className="w-5 h-5" />} label="Profile" isActive={screen === ScreenName.BUYER_PROFILE} onClick={() => setScreen(ScreenName.BUYER_PROFILE)} />
-        </div>
-      );
-    } else {
-      return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#111118]/90 backdrop-blur-md border-t border-gray-100 dark:border-white/5 py-3 px-6 flex justify-between z-50">
-          <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dash" isActive={screen === ScreenName.SELLER_DASHBOARD} onClick={() => setScreen(ScreenName.SELLER_DASHBOARD)} />
-          <NavItem icon={<PlusCircle className="w-5 h-5" />} label="Upload" isActive={screen === ScreenName.SELLER_UPLOAD} onClick={() => setScreen(ScreenName.SELLER_UPLOAD)} />
-          <NavItem icon={<LinkIcon className="w-5 h-5" />} label="Analyzer" isActive={screen === ScreenName.SELLER_LINK_ANALYZER} onClick={() => setScreen(ScreenName.SELLER_LINK_ANALYZER)} />
-          <NavItem icon={<Settings className="w-5 h-5" />} label="Profile" isActive={screen === ScreenName.SELLER_PROFILE} onClick={() => setScreen(ScreenName.SELLER_PROFILE)} />
-        </div>
-      );
-    }
-  };
-
-  // Content Renderer
+  // --- Screen Routing ---
   const renderScreen = () => {
-    switch (screen) {
+    switch (currentScreen) {
       case ScreenName.ONBOARDING:
-        return <Onboarding onComplete={() => setScreen(ScreenName.AUTH)} />;
+        return <Onboarding onComplete={() => setCurrentScreen(ScreenName.AUTH)} />;
+      
       case ScreenName.AUTH:
-        return <Auth onLogin={handleLogin} />;
+        return <Auth onLogin={() => setCurrentScreen(ScreenName.BUYER_HOME)} />;
       
-      // Buyer
       case ScreenName.BUYER_HOME:
-        return <BuyerHome onNavigate={setScreen} onProductSelect={handleProductSelect} />;
-      case ScreenName.BUYER_PRODUCT_DETAIL:
-        return selectedProduct ? <ProductDetail product={selectedProduct} onBack={() => setScreen(ScreenName.BUYER_HOME)} /> : null;
-      case ScreenName.BUYER_REELS:
         return (
-          <ReelsView 
-             reels={REELS} 
-             onBack={() => setScreen(ScreenName.BUYER_HOME)} 
-          />
-        );
-      case ScreenName.BUYER_PROFILE:
-        return (
-          <Profile 
-            role={UserRole.BUYER} 
-            onSwitchMode={handleSellerSwitch} 
-            hasSellerAccount={hasSellerAccount} 
+          <BuyerHome 
+            onNavigate={(s) => setCurrentScreen(s)}
+            onProductSelect={(p) => {
+              setSelectedProduct(p);
+              setCurrentScreen(ScreenName.PRODUCT_DETAIL);
+            }}
           />
         );
       
-      // Seller
+      case ScreenName.PRODUCT_DETAIL:
+        return selectedProduct ? (
+          <ProductDetail 
+            product={selectedProduct} 
+            onBack={() => setCurrentScreen(ScreenName.BUYER_HOME)} 
+          />
+        ) : null;
+      
+      case ScreenName.BUYER_REELS:
+        return <ReelsView reels={REELS} onBack={() => setCurrentScreen(ScreenName.BUYER_HOME)} />;
+      
       case ScreenName.SELLER_REGISTRATION:
         return (
           <SellerRegistration 
-            onComplete={handleSellerRegistrationComplete}
-            onCancel={() => setScreen(ScreenName.BUYER_PROFILE)}
+            onComplete={() => {
+              setHasSellerAccount(true);
+              setUserRole(UserRole.SELLER);
+              setCurrentScreen(ScreenName.SELLER_PORTAL);
+            }}
+            onCancel={() => setCurrentScreen(ScreenName.BUYER_HOME)}
           />
         );
-      case ScreenName.SELLER_DASHBOARD:
-        return <SellerPortal />;
+      
+      case ScreenName.SELLER_PORTAL:
+        return <SellerPortal onUpload={() => setCurrentScreen(ScreenName.SELLER_UPLOAD)} />;
+      
       case ScreenName.SELLER_UPLOAD:
         return <SellerUpload />;
-      case ScreenName.SELLER_LINK_ANALYZER:
+      
+      case ScreenName.LINK_ANALYZER:
         return <LinkAnalyzer />;
-      case ScreenName.SELLER_PROFILE:
+      
+      case ScreenName.PROFILE:
         return (
           <Profile 
-            role={UserRole.SELLER} 
-            onSwitchMode={handleSellerSwitch} 
-            hasSellerAccount={hasSellerAccount} 
+            role={userRole}
+            onSwitchMode={(r) => {
+              setUserRole(r);
+              if (r === UserRole.BUYER) setCurrentScreen(ScreenName.BUYER_HOME);
+              else setCurrentScreen(ScreenName.SELLER_PORTAL);
+            }}
+            hasSellerAccount={hasSellerAccount}
           />
         );
+      
       default:
-        return null;
+        return <BuyerHome onNavigate={() => {}} onProductSelect={() => {}} />;
     }
   };
 
-  return (
-    <div className={`w-full h-screen bg-[#F6F6F9] dark:bg-[#111118] text-[#111118] dark:text-white font-sans overflow-hidden flex justify-center`}>
-      {/* Mobile Wrapper */}
-      <div className="w-full max-w-[450px] h-full bg-[#F6F6F9] dark:bg-[#111118] relative shadow-2xl flex flex-col">
-        {/* Dark Mode Toggle - Floating for demo */}
-        {screen !== ScreenName.ONBOARDING && (
+  // --- Bottom Navigation ---
+  const BottomNav = () => {
+    if ([
+      ScreenName.ONBOARDING,
+      ScreenName.AUTH,
+      ScreenName.PRODUCT_DETAIL,
+      ScreenName.SELLER_REGISTRATION,
+      ScreenName.SELLER_UPLOAD
+    ].includes(currentScreen)) return null;
+
+    return (
+      <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#111118] border-t dark:border-white/5 p-3 px-6 flex justify-between items-center">
+        <button 
+          onClick={() => setCurrentScreen(ScreenName.BUYER_HOME)}
+          className={`flex flex-col items-center gap-1 ${currentScreen === ScreenName.BUYER_HOME ? 'text-[#5A4BFF]' : 'text-gray-400'}`}
+        >
+          <ShoppingBag className="w-6 h-6" />
+          <span className="text-xs">Home</span>
+        </button>
+
+        <button 
+          onClick={() => setCurrentScreen(userRole === UserRole.BUYER ? ScreenName.BUYER_REELS : ScreenName.SELLER_PORTAL)}
+          className={`flex flex-col items-center gap-1 ${[ScreenName.BUYER_REELS, ScreenName.SELLER_PORTAL].includes(currentScreen) ? 'text-[#5A4BFF]' : 'text-gray-400'}`}
+        >
+          {userRole === UserRole.BUYER ? (
+            <>
+              <Camera className="w-6 h-6" />
+              <span className="text-xs">Reels</span>
+            </>
+          ) : (
+            <>
+              <Store className="w-6 h-6" />
+              <span className="text-xs">Portal</span>
+            </>
+          )}
+        </button>
+
+        {userRole === UserRole.SELLER && (
           <button 
-            onClick={() => setIsDark(!isDark)}
-            className="absolute top-4 right-4 z-50 p-2 bg-black/5 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300 backdrop-blur"
+            onClick={() => setCurrentScreen(ScreenName.LINK_ANALYZER)}
+            className={`flex flex-col items-center gap-1 ${currentScreen === ScreenName.LINK_ANALYZER ? 'text-[#5A4BFF]' : 'text-gray-400'}`}
           >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <LinkIcon className="w-6 h-6" />
+            <span className="text-xs">Analyzer</span>
           </button>
         )}
 
-        <main className="flex-1 overflow-y-auto no-scrollbar relative">
-          {renderScreen()}
-        </main>
-        {renderBottomNav()}
+        {userRole === UserRole.SELLER && (
+          <button 
+            onClick={() => setCurrentScreen(ScreenName.SELLER_UPLOAD)}
+            className={`flex flex-col items-center gap-1 ${currentScreen === ScreenName.SELLER_UPLOAD ? 'text-[#5A4BFF]' : 'text-gray-400'}`}
+          >
+            <PlusCircle className="w-6 h-6" />
+            <span className="text-xs">Upload</span>
+          </button>
+        )}
+
+        <button 
+          onClick={() => setCurrentScreen(ScreenName.PROFILE)}
+          className={`flex flex-col items-center gap-1 ${currentScreen === ScreenName.PROFILE ? 'text-[#5A4BFF]' : 'text-gray-400'}`}
+        >
+          <UserCircle className="w-6 h-6" />
+          <span className="text-xs">Profile</span>
+        </button>
       </div>
+    );
+  };
+
+  return (
+    <div className="h-screen bg-[#F6F6F9] dark:bg-[#111118] text-gray-900 dark:text-white overflow-hidden relative">
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-white/80 dark:bg-[#111118]/80 backdrop-blur-md border-b border-gray-100 dark:border-white/5 p-4 flex justify-between items-center">
+        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#5A4BFF] to-[#33CFFF]">
+          ByZora
+        </h1>
+        <div className="flex items-center gap-2">
+          <button className="p-2">
+            <Search className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={() => {
+              if (userRole === UserRole.BUYER && !hasSellerAccount) {
+                setCurrentScreen(ScreenName.SELLER_REGISTRATION);
+              } else if (userRole === UserRole.BUYER) {
+                setUserRole(UserRole.SELLER);
+                setCurrentScreen(ScreenName.SELLER_PORTAL);
+              } else {
+                setUserRole(UserRole.BUYER);
+                setCurrentScreen(ScreenName.BUYER_HOME);
+              }
+            }}
+            className="text-xs font-bold bg-gradient-to-r from-[#5A4BFF] to-[#33CFFF] text-white px-3 py-1.5 rounded-full"
+          >
+            {userRole === UserRole.BUYER ? 'Sell' : 'Shop'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="h-full pt-16 overflow-hidden">
+        {renderScreen()}
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 };
