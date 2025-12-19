@@ -8,10 +8,11 @@ import {
 import { UserRole, ScreenName, Product, Reel } from './types';
 
 // Components
-import { Button, Input, Card, NavItem } from './components/UIComponents';
-import { ReelsView } from './components/ReelsView';
-import { SellerPortal } from './components/SellerPortal';
-import { SellerUpload } from './components/SellerUpload';
+// Components
+import { Button, Input, Card, NavItem } from './UIComponents';
+import { ReelsView } from './ReelsView';
+import { SellerPortal } from './SellerPortal';
+import { SellerUpload } from './SellerUpload';
 import * as GeminiService from './services/geminiService';
 
 // --- MOCK DATA ---
