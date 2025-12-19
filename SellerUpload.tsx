@@ -7,7 +7,7 @@ import {
   Link as LinkIcon, Globe
 } from 'lucide-react';
 import { Button, Input, Card } from './UIComponents';
-import * as GeminiService from '../services/geminiService';
+import * as GeminiService from './geminiService';
 
 const CATEGORIES = ['Fashion', 'Electronics', 'Home', 'Beauty', 'Fitness', 'Toys', 'Art'];
 
@@ -392,4 +392,4 @@ export const SellerUpload = () => {
       </div>
     </div>
   );
-};
+}
